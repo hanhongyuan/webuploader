@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" version="3.0">
+  <display-name></display-name>
+  <welcome-file-list>
+    <welcome-file>index.jsp</welcome-file>
+  </welcome-file-list>
+  
+  <context-param>
+      <param-name>upload</param-name>
+      <param-value>C:\\Users\\Administrator.PC-201504281545\\Desktop\\temp\\</param-value>
+  </context-param>
+  
+  <servlet>
+      <servlet-name>webUploaderServlet</servlet-name>
+      <servlet-class>com.ls.WebUploaderServlet</servlet-class>
+      <multipart-config>
+          <location>C:\\Users\\Administrator.PC-201504281545\\Desktop\\temp\\</location>
+      </multipart-config>
+  </servlet>
+  
+  <servlet-mapping>
+      <servlet-name>webUploaderServlet</servlet-name>
+      <url-pattern>/webUploaderServlet.do</url-pattern>
+  </servlet-mapping>
+  
+</web-app>
