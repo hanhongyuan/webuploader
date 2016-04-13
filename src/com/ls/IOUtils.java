@@ -12,7 +12,21 @@ public class IOUtils {
 		while( (len = is.read(buff)) != -1){
 			os.write(buff, 0, len);
 		}
-		is.close();
-		os.close();
+	}
+	
+	public static void close(InputStream is, OutputStream os){
+			try {
+				if(is != null)
+					is.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}finally{
+				try {
+					if(os != null)
+						os.close();
+				} catch (Exception e2) {
+					e2.printStackTrace();
+				}
+			}
 	}
 }

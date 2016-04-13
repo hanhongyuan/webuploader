@@ -7,14 +7,14 @@
   
   <context-param>
       <param-name>upload</param-name>
-      <param-value>C:\\Users\\Administrator.PC-201504281545\\Desktop\\temp\\</param-value>
+      <param-value>C:\\Users\\warhorse\\Desktop\\temp</param-value>
   </context-param>
   
   <servlet>
       <servlet-name>webUploaderServlet</servlet-name>
       <servlet-class>com.ls.WebUploaderServlet</servlet-class>
       <multipart-config>
-          <location>C:\\Users\\Administrator.PC-201504281545\\Desktop\\temp\\</location>
+          <location>C:\\Users\\warhorse\\Desktop\\temp</location>
       </multipart-config>
   </servlet>
   
