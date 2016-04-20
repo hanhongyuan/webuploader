@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <script type="text/javascript" src="webuploader/jquery-2.1.4.js"></script>
 <script type="text/javascript" src="webuploader/webuploader.js"></script>
+<script type="text/javascript" src="uploader.js"></script>
 <link rel="stylesheet" type="text/css" href="webuploader/webuploader.css">
 <link rel="stylesheet" type="text/css" href="webuploader/bootstrap.css">
 <title>webuploader测试</title>
@@ -21,6 +22,9 @@
 <button id="ctlBtn" class="btn btn-default">开始上传</button>
 </body>
 <script type="text/javascript">
+var subFiles;
+var parentMd5;
+
 $(function(){
 	//钩子函数
 	WebUploader.Uploader.register({
@@ -33,9 +37,7 @@ $(function(){
 				server = me.options.server,
 				deferred = WebUploader.Deferred();
 			
-			console.log(this);
-			console.log(deferred);
-			
+				console.log(file.source);
 			owner.md5File( file.source )
 				// 如果读取出错了，则通过reject告诉webuploader文件上传出错。
 				.fail(function(){
@@ -43,14 +45,13 @@ $(function(){
 				})
 				// md5值计算完成
 				.then(function( md5 ) {
-					console.log("md5:"+md5);
 					
-					if(md5 == '285787bf9b7ee28d9761c5ec32e8fb9a2'){
+					parentMd5 = md5;
+					if(isExist(md5)){
 						owner.skipFile( file );
                         console.log('文件重复，已跳过');
 					}
 					deferred.resolve();
-					
 				});
 			
 			return deferred.promise();
@@ -77,13 +78,21 @@ $(function(){
 				})
 				// md5值计算完成
 				.then(function( md5 ) {
-					console.log("md5:"+md5);
 					
-					if(md5 == '285787bf9b7ee28d9761c5ec32e8fb9a'){
+					if(!subFiles){
+						console.log("parentMd5:"+md5);
+						subFiles = getSubFile(parentMd5);		
+					}
+					
+					console.log("md5:"+md5);
+					console.log(subFiles);
+					if(contains(subFiles, md5)){
 						//owner.skipFile( block.file );
 	                    console.log('文件重复，已跳过');
 	                    console.log(block.blob);
 					}else{
+						var formData = {parentMd5:parentMd5, md5:md5};
+						uploader.options.formData = formData;
 						deferred.resolve();
 					}
 					
@@ -110,16 +119,12 @@ $(function(){
 	    resize: false,
 	    
 	    auto: false,
-	    
 	    chunked: true,
 	    chunkSize: 5242880,
 	    chunkRetry: 3,
 	    threads: 1
 	});
 
-	
-	
-	
 	
 	//当有文件被添加进队列的时候
 	uploader.on( 'fileQueued', function( file ) {

@@ -8,8 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,6 +24,11 @@ import javax.servlet.http.Part;
 
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 
+import com.ls.dao.UploadFileDao;
+import com.ls.util.DateUtil;
+import com.ls.util.IOUtils;
+import com.ls.util.Installer;
+
 /**
  * 测试webuploader上传
  */
@@ -28,60 +36,66 @@ public class WebUploaderServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
     
 	private String uploadPath;
+	private UploadFileDao uploadFileDao = new UploadFileDao();
 	
 	@Override
 	public void init() throws ServletException {
 		uploadPath = (String) super.getServletContext().getInitParameter("upload");
 		uploadPath = (uploadPath + "\\").replace("\\\\", "\\");
+		
+		Installer installer = new Installer();
+		installer.install();
 	}
 	
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doPost(request, response);
+		//1.获取也页面参数
+		String type = request.getParameter("type");
+		String md5 = request.getParameter("md5");
+		String parentMd5 = request.getParameter("parentMd5");
+		
+		response.setContentType("text/html;charset=utf-8");
+		PrintWriter out = response.getWriter();
+		//2.
+		if("md5".equals(type)){
+			int count = uploadFileDao.getCountByMd5(md5);
+			out.print( count > 0 ? true : false);
+		}else if("parentMd5".equals(type)){
+			List<UploadFile> uploadFiles = uploadFileDao.getListByParentMd5(parentMd5);
+			StringBuilder sb = new StringBuilder();
+			sb.append("[");
+			if(uploadFiles != null){
+				for (int i = 0; i < uploadFiles.size(); i++) {
+					sb.append("\"").append(uploadFiles.get(i).getMd5()).append("\"");
+					if(i != uploadFiles.size() - 1){
+						sb.append(",");
+					}
+				}
+			}
+			sb.append("]");
+			out.print( sb.toString());
+			System.out.println("----------------");
+		}
+		
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		response.setContentType("text/html;charset=utf-8");
 		PrintWriter out = response.getWriter();
-		Long start = System.currentTimeMillis();
-		Part part = request.getPart("file");
 		
-		Map<String, String[]> map = request.getParameterMap();
-		Set<String> keys = map.keySet();
-		for (String key : keys) {
-			String[] params = map.get(key);
-			if(params.length > 1){
-				for (String param : params) {
-					//System.out.println(key+":"+param);
-				}
-			}else{
-				//System.out.println(key+":"+params[0]);
-			}
-		}
-		//System.out.println("=========================");
 		//获取参数
-		String host = request.getRemoteHost();
-		String name = request.getParameter("name");
-		String chunks = request.getParameter("chunks");//被分文件的总块数
-		String chunk = request.getParameter("chunk");//当前的块号
-		String lastModifiedDateStr = request.getParameter("lastModifiedDate");
-		lastModifiedDateStr = lastModifiedDateStr.substring(0, lastModifiedDateStr.indexOf("(") - 1);
-		Date date = null;
-		try {
-			date = DateUtil.getDateByTimeZone(lastModifiedDateStr);
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		//System.out.println(host);
+		Part part = request.getPart("file");
+		int chunks = getIntParam(request, "chunks", 1);//被分文件的总块数
+		int chunk = getIntParam(request, "chunk", 1);//当前的块号
+		String parentMd5 = request.getParameter("parentMd5");//当前的块号
+		String md5 = request.getParameter("md5");//当前的块号
 		
 		//构建文件名
 		String fileName = getFileName(part);
-		File file = new File(uploadPath + fileName + "_" + chunk);
+		String newFileName = fileName + (chunks == 1 ? "" : "_"+chunk);
+		File file = new File(uploadPath + newFileName);
 		
-		//判断文件是否已经上传过了1460558020047    1460558076206
-		//		          1460558023556    1460558082417
 		if(file.exists()){
-			merge(fileName, Integer.parseInt(chunks));
-			System.out.println(System.currentTimeMillis() - start);
+			merge(fileName, chunks);
 			out.println("ok");
 			return ;
 		}
@@ -90,13 +104,45 @@ public class WebUploaderServlet extends HttpServlet {
 		InputStream is = part.getInputStream();
 		OutputStream os = new FileOutputStream(file);
 		IOUtils.copy(is, os);
-		System.out.println(System.currentTimeMillis());
+		IOUtils.close(is, os);
+		
+		UploadFile uploadFile = new UploadFile();
+		uploadFile.setChunk(chunk);
+		uploadFile.setChunks(chunks);
+		uploadFile.setFileName(fileName);
+		uploadFile.setFileSize(0);
+		uploadFile.setGood(chunks == 1 ? true : false);;
+		uploadFile.setMd5(md5);
+		uploadFile.setNewFileName(newFileName);
+		uploadFile.setParentMd5(parentMd5);
+		uploadFileDao.add(uploadFile);
+		
 		out.println("ok");
+	}
+	
+	private int getIntParam(HttpServletRequest request, String name, int defVal){
+		String str = request.getParameter(name);
+		return getIntParam(str, defVal);
+	}
+	
+	private int getIntParam(String str, int defVal){
+		int retVal = 0;
+		try {
+			retVal = Integer.parseInt(str);
+		} catch (Exception e) {
+			retVal = defVal;
+		}
+		return retVal;
 	}
 	
 	private String getFileName(Part part){
 		String header = part.getHeader("Content-Disposition");
 		String fileName = header.substring(header.indexOf("filename=\"")+10, header.length() - 1);
+		try {
+			fileName = new String(fileName.getBytes(),"utf-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
 		return fileName;
 	}
 
@@ -140,6 +186,10 @@ public class WebUploaderServlet extends HttpServlet {
 	 * @throws IOException
 	 */
 	private void merge(String fileName, int chunks) throws IOException{
+		if(chunks <= 1){
+			return ;
+		}
+		
 		if(!isUploadComplete(fileName, chunks)){
 			System.out.println("没完整");
 			return;

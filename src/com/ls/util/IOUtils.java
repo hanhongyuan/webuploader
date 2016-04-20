@@ -1,4 +1,4 @@
-package com.ls;
+package com.ls.util;
 
 import java.io.IOException;
 import java.io.InputStream;
