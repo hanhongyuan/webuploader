@@ -26,6 +26,7 @@ import org.apache.tomcat.util.http.fileupload.FileUtils;
 
 import com.ls.dao.UploadFileDao;
 import com.ls.util.DateUtil;
+import com.ls.util.FileUtil;
 import com.ls.util.IOUtils;
 import com.ls.util.Installer;
 
@@ -55,11 +56,14 @@ public class WebUploaderServlet extends HttpServlet {
 		
 		response.setContentType("text/html;charset=utf-8");
 		PrintWriter out = response.getWriter();
-		//2.
+		//2.查询
+		//2.1查询文件是否存在
 		if("md5".equals(type)){
 			int count = uploadFileDao.getCountByMd5(md5);
 			out.print( count > 0 ? true : false);
-		}else if("parentMd5".equals(type)){
+		}
+		//2.2查询文件的子文件
+		else if("parentMd5".equals(type)){
 			List<UploadFile> uploadFiles = uploadFileDao.getListByParentMd5(parentMd5);
 			StringBuilder sb = new StringBuilder();
 			sb.append("[");
@@ -73,7 +77,6 @@ public class WebUploaderServlet extends HttpServlet {
 			}
 			sb.append("]");
 			out.print( sb.toString());
-			System.out.println("----------------");
 		}
 		
 	}
@@ -90,22 +93,17 @@ public class WebUploaderServlet extends HttpServlet {
 		String md5 = request.getParameter("md5");//当前的块号
 		
 		//构建文件名
-		String fileName = getFileName(part);
-		String newFileName = fileName + (chunks == 1 ? "" : "_"+chunk);
+		String fileName = FileUtil.getFileNameFromPart(part);
+		String newFileName = FileUtil.getRandomFileName(fileName);
 		File file = new File(uploadPath + newFileName);
 		
-		if(file.exists()){
-			merge(fileName, chunks);
-			out.println("ok");
-			return ;
-		}
-		
-		//保存文件
+		//上传文件
 		InputStream is = part.getInputStream();
 		OutputStream os = new FileOutputStream(file);
 		IOUtils.copy(is, os);
 		IOUtils.close(is, os);
 		
+		//保存上传文件到数据库
 		UploadFile uploadFile = new UploadFile();
 		uploadFile.setChunk(chunk);
 		uploadFile.setChunks(chunks);
@@ -117,102 +115,26 @@ public class WebUploaderServlet extends HttpServlet {
 		uploadFile.setParentMd5(parentMd5);
 		uploadFileDao.add(uploadFile);
 		
+		//判断文件是否上传完整
+		if(chunks > 1){
+			int count = uploadFileDao.getCountByParentMd5(parentMd5);
+			if(chunks == count){
+				FileUtil.merge(parentMd5, uploadPath);
+			}
+		}
+		
 		out.println("ok");
 	}
 	
 	private int getIntParam(HttpServletRequest request, String name, int defVal){
-		String str = request.getParameter(name);
-		return getIntParam(str, defVal);
-	}
-	
-	private int getIntParam(String str, int defVal){
 		int retVal = 0;
 		try {
-			retVal = Integer.parseInt(str);
+			String param = request.getParameter(name);
+			retVal = Integer.parseInt(param);
 		} catch (Exception e) {
 			retVal = defVal;
 		}
 		return retVal;
 	}
 	
-	private String getFileName(Part part){
-		String header = part.getHeader("Content-Disposition");
-		String fileName = header.substring(header.indexOf("filename=\"")+10, header.length() - 1);
-		try {
-			fileName = new String(fileName.getBytes(),"utf-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
-		return fileName;
-	}
-
-	/**
-	 * 判断文件是否上传完整
-	 * @return
-	 */
-	private boolean isUploadComplete(String fileName, int chunks){
-		boolean contains = false;
-		
-		File dir = new File(uploadPath);
-		if(dir.isDirectory()){
-			String[] files = dir.list();
-			if(files != null && files.length > 0){
-				
-				for(int i = 0; i < chunks; i++){
-					
-					contains = false;
-					String newFileName = fileName + "_" + i;
-					for(int j = 0; j < files.length; j++){
-						if(newFileName.equals(files[j])){
-							contains = true;
-							break;
-						}
-					}
-					
-					if(!contains){
-						break;
-					}
-				}
-			}
-		}
-		
-		return contains;
-	}
-	
-	/**
-	 * 将文件合并
-	 * @param fileName
-	 * @param chunks
-	 * @throws IOException
-	 */
-	private void merge(String fileName, int chunks) throws IOException{
-		if(chunks <= 1){
-			return ;
-		}
-		
-		if(!isUploadComplete(fileName, chunks)){
-			System.out.println("没完整");
-			return;
-		}
-		
-		File mergeFile = new File(uploadPath + fileName);
-		//如果存在，说明文件正在合并，或者文件合并完成
-		if(mergeFile.exists()){
-			return ;
-		}
-		System.out.println("合并中。。。");
-		
-		//合并文件
-		OutputStream os = new FileOutputStream(mergeFile);
-		InputStream is = null;
-		
-		File file = null;
-		for(int i = 0;i<chunks;i++){
-			file = new File(uploadPath + fileName + "_" + i);
-			is = new FileInputStream(file);
-			IOUtils.copy(is, os);
-			IOUtils.close(is, null);
-		}
-		IOUtils.close(null, os);
-	}
 }

@@ -46,6 +46,8 @@ public class UploadFileDao {
 		} catch (SQLException e) {
 			System.err.println(sql); 
 			e.printStackTrace();
+		}finally{
+			DBUtil.close(conn, ps, rs);
 		}
 		return items;
 	}
@@ -70,6 +72,8 @@ public class UploadFileDao {
 		} catch (SQLException e) {
 			System.err.println(sql); 
 			e.printStackTrace();
+		}finally{
+			DBUtil.close(conn, ps, rs);
 		}
 		return count;
 	}
@@ -91,12 +95,14 @@ public class UploadFileDao {
 		} catch (SQLException e) {
 			System.err.println(sql); 
 			e.printStackTrace();
+		}finally{
+			DBUtil.close(conn, ps, rs);
 		}
 		return count;
 	}
 	
 	public List<UploadFile> getListByParentMd5(String parentMd5){
-		String sql = "select * from "+curTable+" where parentMd5 = ?";
+		String sql = "select * from "+curTable+" where parentMd5 = ? order by chunk asc";
 		return getRS(sql, parentMd5);
 	}
 	
@@ -105,10 +111,20 @@ public class UploadFileDao {
 		return getCount(sql, md5);
 	}
 	
+	public int getCountByParentMd5(String parentMd5){
+		String sql = "select count(*) from "+curTable+" where parentMd5 = ?";
+		return getCount(sql, parentMd5);
+	}
+	
 	public void add(UploadFile uploadFile){
 		String sql = "insert into "+curTable+" (md5, parentMd5, fileName, newFileName, fileSize, chunk, chunks, isGood) values(?,?,?,?,?,?,?,?)";
 		
 		execute(sql, uploadFile.getMd5(), uploadFile.getParentMd5(), uploadFile.getFileName(), uploadFile.getNewFileName(),
 				uploadFile.getFileSize(), uploadFile.getChunk(), uploadFile.getChunks(), uploadFile.isGood());
+	}
+
+	public void deleteByParentMd5(String parentMd5) {
+		String sql = "delete from "+curTable+" where parentMd5 = ?";
+		this.execute(sql, parentMd5);
 	}
 }

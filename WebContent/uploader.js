@@ -1,31 +1,48 @@
 function isExist(md5){
 	var exist = false;
-	$.get('webUploaderServlet.do',{md5:md5, type:"md5"},function(text){
-		console.log(text);
-		exist = text;
+	$.ajax({
+	   type: "get",
+	   async: false,
+	   url: "webUploaderServlet.do",
+	   data: {md5:md5, type:"md5"},
+	   dataType: "json",
+	   success: function(text){
+		   exist = text;
+	   }
 	});
+	console.log(md5+"是否存在:"+exist);
 	return exist;
 }
 
 function getSubFile(parentMd5){
 	var files = [];
-	$.get('webUploaderServlet.do',{parentMd5:parentMd5, type:"parentMd5"},function(text){
-		files = text;
-		console.log(files[0]);
+	$.ajax({
+	   type: "get",
+	   async: false,
+	   url: "webUploaderServlet.do",
+	   data: {parentMd5:parentMd5, type:"parentMd5"},
+	   dataType: "json",
+	   success: function(text){
+		 files = text;
+	   }
 	});
+	
+	console.log("getSubFile->使用parentMd5:"+parentMd5+"从服务器查询的数据:");
+	console.log(files);
 	return files;
 }
 
 function contains(files, md5){
+//	if(md5){
+//		return false;
+//	}
 	if(files){
 		for(var i = 0; i < files.length; i++){
-			console.log(files[i]);
 			if(md5 == files[i]){
-				console.log("contains: true");
+				console.log("返回数据列表中包含:"+md5);
 				return true;
 			}
 		}
 	}
-	console.log("contains: false");
 	return false;
 }

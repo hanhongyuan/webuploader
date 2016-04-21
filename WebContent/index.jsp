@@ -50,7 +50,10 @@ $(function(){
 					if(isExist(md5)){
 						owner.skipFile( file );
                         console.log('文件重复，已跳过');
+					}else{
+						subFiles = getSubFile(parentMd5);
 					}
+					
 					deferred.resolve();
 				});
 			
@@ -64,11 +67,10 @@ $(function(){
 		'before-send': 'checkchunk'
 	},{
 		checkchunk : function(block){
-			var blob = block.blob.getSource(),
-				owner = this.owner,
+			var owner = this.owner,
             	deferred = $.Deferred();
 			
-			console.log("------------------");
+			console.log("--------拆分文件----------");
 			console.log(block);
 			
 			owner.md5File( block.blob )
@@ -79,23 +81,14 @@ $(function(){
 				// md5值计算完成
 				.then(function( md5 ) {
 					
-					if(!subFiles){
-						console.log("parentMd5:"+md5);
-						subFiles = getSubFile(parentMd5);		
-					}
-					
-					console.log("md5:"+md5);
-					console.log(subFiles);
+					console.log("即将上传文件的MD5:"+md5);
 					if(contains(subFiles, md5)){
-						//owner.skipFile( block.file );
-	                    console.log('文件重复，已跳过');
-	                    console.log(block.blob);
+						deferred.reject();
+	                    console.log('md5为'+md5+'文件重复，已跳过');
 					}else{
-						var formData = {parentMd5:parentMd5, md5:md5};
-						uploader.options.formData = formData;
+						uploader.options.formData = {parentMd5:parentMd5, md5:md5};
 						deferred.resolve();
 					}
-					
 			});
 
 	        return deferred.promise();
